@@ -1,150 +1,99 @@
-# Recommended AWS CDK project structure for Python applications
-The project implements a *user management backend* component that uses 
-Amazon API Gateway, AWS Lambda and Amazon DynamoDB to provide basic CRUD operations 
-for managing users. The project also includes a toolchain with continuous deployment 
-pipeline.
+# Currency Exchange Rate API using AWS CDK, Lambda, Dynamodb and API Gateway
+The project implements a *currency exchange rate backend* component that uses 
+Amazon API Gateway, AWS Lambda and Amazon DynamoDB to fetch the latest exchange rates from [European Central Bank Website](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-usd.en.html)
+and provides basic APIs to:
+- Get current exchange rates. 
+- How the exchange rate has changed compared to the previous day.
 
-![diagram](https://user-images.githubusercontent.com/4362270/190898096-b52c1643-fce2-4d67-95bb-071a74fc5d83.png)
-\* Diagram generated using https://github.com/pistazie/cdk-dia
+<br>The project uses AWS CDK for deployment. It was set up using the [aws-cdk-project-structure-python](https://github.com/aws-samples/aws-cdk-project-structure-python)
+template provided by AWS.
 
-## Create a new repository from aws-cdk-project-structure-python
-This project is a template. Click “Use this template” (see the screenshot below) in 
-the repository [main page](https://github.com/aws-samples/aws-cdk-project-structure-python)
-to create your own repository based on `aws-samples/aws-cdk-project-structure-python`. 
-This is optional for deploying the component to sandbox environment, but 
-**required** for deploying the toolchain.
+## Components
+It has the following components:
 
-![template](https://user-images.githubusercontent.com/4362270/128629234-31cd275e-6a3f-4a6a-9010-028a0a279950.png)
+### Database
+Dynamodb is used to store exchange rates info. The key is formed by concatenating currency and date. An additional index
+of `date` is defined to allow querying on date as well. 
 
-The instructions below use the `aws-cdk-project-structure-python` repository.
+### Update Exchange Rates Lambda Function
+This Lambda function runs every 12 hours. It fetches the latest exchange rates from [European Central Bank Website](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-usd.en.html)
+and stores them in dynamodb. It can be changed to run on a cron schedule as per requirement.
 
-## Create development environment
-See [Getting Started With the AWS CDK](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html)
-for additional details and prerequisites
+### Get Exchange Rates Lambda Function
+This lambda function is tied to API gateway and provides two functionalities. 
+- Get exchange rates and change in exchange rates for all currencies.
+- Get exchange rates and change in exchange rates for a particular currency.
 
-### Clone the code
+### API Gateway
+It creates an API gateway and ties to lambda function.
+
+### Monitoring
+It creates a dashboard in Cloud Watch with two widgets:
+- API Gateway metric count
+- Dynamodb consumed read capacity unit metric count
+
+## Deployment
+Unzip the provided archive file. 
 ```bash
-git clone https://github.com/aws-samples/aws-cdk-project-structure-python
-cd aws-cdk-project-structure-python
+unzip python-cdk-apigw-lambda-dynamodb-main
+cd python-cdk-apigw-lambda-dynamodb-main
 ```
-
 ### Create Python virtual environment and install the dependencies
 ```bash
-python3.7 -m venv .venv
+python3.8 -m venv .venv
 source .venv/bin/activate
 
-# [Optional] Needed to upgrade dependencies and cleanup unused packages
-# Pinning pip-tools to 6.4.0 and pip to 21.3.1 due to
-# https://github.com/jazzband/pip-tools/issues/1576
 pip install pip-tools==6.4.0
 pip install pip==21.3.1
 
 ./scripts/install-deps.sh
-./scripts/run-tests.sh
 ```
 
-### [Optional] Upgrade AWS CDK Toolkit version
-**Note:** If you are planning to upgrade dependencies, first push the upgraded AWS CDK Toolkit version.
-See [(pipelines): Fail synth if pinned CDK CLI version is older than CDK library version](https://github.com/aws/aws-cdk/issues/15519) 
-for more details.
+### Deploy the component
+The `CurrencyExchangeRateBackend` stack uses AWS account and region setup using `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION` environment variables.
 
 ```bash
-vi package.json  # Update the "aws-cdk" package version
-./scripts/install-deps.sh
-./scripts/run-tests.sh
+export CDK_DEFAULT_ACCOUNT=<YOUR_ACCOUNT>
+export CDK_DEFAULT_REGION=<YOUR_REGION>
+npx cdk bootstrap
+npx cdk deploy CurrencyExchangeRateBackend
 ```
 
-### [Optional] Upgrade dependencies (ordered by constraints)
-Consider [AWS CDK Toolkit (CLI)](https://docs.aws.amazon.com/cdk/latest/guide/reference.html#versioning) compatibility 
-when upgrading AWS CDK packages version.
-
-```bash
-pip-compile --upgrade backend/api/runtime/requirements.in
-pip-compile --upgrade requirements.in
-pip-compile --upgrade requirements-dev.in
-./scripts/install-deps.sh
-# [Optional] Cleanup unused packages
-pip-sync backend/api/runtime/requirements.txt requirements.txt requirements-dev.txt
-./scripts/run-tests.sh
-```
-
-## Deploy the component to sandbox environment
-The `UserManagementBackendSandbox` stack uses your default AWS account and region.
-
-```bash
-npx cdk deploy UserManagementBackendSandbox
-```
-
-Example output for `npx cdk deploy UserManagementBackendSandbox`:
+Example output for `npx cdk deploy CurrencyExchangeRateBackend`:
 ```text
- ✅  UserManagementBackendSandbox
+ ✅  CurrencyExchangeRateBackend
 
 Outputs:
-UserManagementBackendSandbox.APIEndpoint = https://86kp2xjgbh.execute-api.eu-west-1.amazonaws.com/
+CurrencyExchangeRateBackend.APIEndpoint = https://86kp2xjgbh.execute-api.eu-west-1.amazonaws.com/
 ```
-
-## Deploy the toolchain
-**Prerequisites**
-- Create a new repository from aws-cdk-project-structure-python, if you haven't done 
-  this already. See [Create a new repository from aws-cdk-project-structure-python](README.md#create-a-new-repository-from-aws-cdk-project-structure-python)
-  for instructions
-- Create AWS CodeStar Connections [connection](https://docs.aws.amazon.com/dtconsole/latest/userguide/welcome-connections.html)
-  for the pipeline
-- Update the toolchain account in [app.py](app.py) 
-- Update the toolchain constants in [toolchain.py](toolchain.py)
-- Commit and push the changes: `git commit -a -m 'Update toolchain account and constants' && git push`
-
-```bash
-npx cdk deploy UserManagementBackendToolchain
-```
-
-## Delete all stacks
-**Do not forget to delete the stacks to avoid unexpected charges**
-```bash
-npx cdk destroy UserManagementBackendSandbox
-npx cdk destroy UserManagementBackendToolchain
-npx cdk destroy UserManagementBackendToolchain/Pipeline/Production/UserManagementBackendProduction
-```
-
-Delete the AWS CodeStar Connections connection if it is no longer needed. Follow the instructions
-in [Delete a connection](https://docs.aws.amazon.com/dtconsole/latest/userguide/connections-delete.html).
 
 ## Testing the API
+The Update Exchange Rates lambda function executes every 12 hours. However, you may invoke it once, before testing. 
 Below are examples that show the available resources and how to use them.
 
 ```bash
+function_name=$(aws cloudformation describe-stacks \
+  --stack-name CurrencyExchangeRateBackend \
+  --query 'Stacks[*].Outputs[?OutputKey==`UpdateCurrencyRateLambdaFunction`].OutputValue' \
+  --region $CDK_DEFAULT_REGION
+  --output )
+
+aws lambda invoke --function-name ${function_name} out --log-type Tail --region $CDK_DEFAULT_REGION
+  
 api_endpoint=$(aws cloudformation describe-stacks \
-  --stack-name UserManagementBackendSandbox \
+  --stack-name CurrencyExchangeRateBackend \
   --query 'Stacks[*].Outputs[?OutputKey==`APIEndpoint`].OutputValue' \
-  --output text)
+  --region $CDK_DEFAULT_REGION
+  --output )
 
-curl \
-    -H "Content-Type: application/json" \
-    -X POST \
-    -d '{"username":"john", "email":"john@example.com"}' \
-    "${api_endpoint}/users"
+curl "${api_endpoint}/exchange_rates"
 
-curl \
-    -H "Content-Type: application/json" \
-    -X GET \
-    "${api_endpoint}/users/john"
+curl "${api_endpoint}/exchange_rates/USD"
 
-curl \
-    -H "Content-Type: application/json" \
-    -X PUT \
-    -d '{"country":"US", "state":"WA"}' \
-    "${api_endpoint}/users/john"
-
-curl \
-    -H "Content-Type: application/json" \
-    -X DELETE \
-    "${api_endpoint}/users/john"
 ```
 
-# Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
-
-# License
-
-This code is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
+## Delete the stack
+**Do not forget to delete the stacks to avoid unexpected charges**
+```bash
+npx cdk destroy CurrencyExchangeRateBackend
+```
