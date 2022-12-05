@@ -64,7 +64,11 @@ Example output for `npx cdk deploy CurrencyExchangeRateBackend`:
  ✅  CurrencyExchangeRateBackend
 
 Outputs:
-CurrencyExchangeRateBackend.APIEndpoint = https://86kp2xjgbh.execute-api.eu-west-1.amazonaws.com/
+CurrencyExchangeRateBackend.APIEndpoint = https://afwaatt0j1.execute-api.us-west-2.amazonaws.com/
+CurrencyExchangeRateBackend.UpdateCurrencyRateLambdaFunction = CurrencyExchangeRateBacke-LambdaUpdateCurrencyRate-84C3MQPW6KX6
+Stack ARN:
+arn:aws:cloudformation:us-west-2:007148109666:stack/CurrencyExchangeRateBackend/f95c7500-745d-11ed-a0c1-0612a202de15
+
 ```
 
 ## Testing the API
@@ -75,16 +79,16 @@ Below are examples that show the available resources and how to use them.
 function_name=$(aws cloudformation describe-stacks \
   --stack-name CurrencyExchangeRateBackend \
   --query 'Stacks[*].Outputs[?OutputKey==`UpdateCurrencyRateLambdaFunction`].OutputValue' \
-  --region $CDK_DEFAULT_REGION
-  --output )
+  --region $CDK_DEFAULT_REGION \
+  --output text )
 
 aws lambda invoke --function-name ${function_name} out --log-type Tail --region $CDK_DEFAULT_REGION
   
 api_endpoint=$(aws cloudformation describe-stacks \
   --stack-name CurrencyExchangeRateBackend \
   --query 'Stacks[*].Outputs[?OutputKey==`APIEndpoint`].OutputValue' \
-  --region $CDK_DEFAULT_REGION
-  --output )
+  --region $CDK_DEFAULT_REGION \
+  --output text )
 
 curl "${api_endpoint}/exchange_rates"
 
